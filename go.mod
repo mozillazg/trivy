@@ -34,4 +34,7 @@ require (
 	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4
 )
 
-replace github.com/genuinetools/reg => github.com/tomoyamachi/reg v0.16.1-0.20190706172545-2a2250fd7c00
+replace (
+	github.com/genuinetools/reg => github.com/tomoyamachi/reg v0.16.1-0.20190706172545-2a2250fd7c00
+	github.com/aquasecurity/fanal => github.com/mozillazg/fanal v0.1.0
+)
