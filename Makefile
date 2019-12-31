@@ -45,10 +45,6 @@ fmt:
 build:
 	go build $(LDFLAGS) ./cmd/trivy
 
-.PHONY: build_linux
-build_linux:
-	GOOS=linux GOARCH=amd64 make build
-
 .PHONY: protoc
 protoc:
 	protoc --proto_path=$(GOSRC):. --twirp_out=. --go_out=. ./rpc/detector/service.proto
