@@ -45,6 +45,10 @@ func ListenAndServe(addr string, c config.Config) error {
 	}
 
 	go func() {
+		if c.SkipUpdate {
+			log.Logger.Warnf("Skip db update worker because --skip-update is set")
+			return
+		}
 		worker := initializeDBWorker(true)
 		ctx := context.Background()
 		for {
