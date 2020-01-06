@@ -35,6 +35,6 @@ require (
 )
 
 replace (
-	github.com/aquasecurity/fanal => github.com/mozillazg/fanal v0.1.0
+	github.com/aquasecurity/fanal => github.com/mozillazg/fanal v0.2.0
 	github.com/genuinetools/reg => github.com/tomoyamachi/reg v0.16.1-0.20190706172545-2a2250fd7c00
 )
