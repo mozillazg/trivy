@@ -47,7 +47,9 @@ func run(c config.Config) (err error) {
 	}
 
 	// download the database file
-	if err = operation.DownloadDB(c.AppVersion, c.CacheDir, true, false, c.SkipUpdate); err != nil {
+	if c.SkipUpdate {
+		log.Logger.Warnf("Skip download db because --skip-update is set")
+	} else if err = operation.DownloadDB(c.AppVersion, c.CacheDir, true, false, c.SkipUpdate); err != nil {
 		return err
 	}
 
