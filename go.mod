@@ -33,3 +33,5 @@ require (
 	gopkg.in/yaml.v2 v2.2.4 // indirect
 	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4
 )
+
+replace github.com/aquasecurity/fanal => github.com/mozillazg/fanal v0.4.0
