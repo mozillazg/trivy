@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/aquasecurity/trivy-db/pkg/vulnsrc/redhat"
-
-	version "github.com/knqyf263/go-rpm-version"
-	"golang.org/x/xerrors"
+	ospkgutils "github.com/aquasecurity/trivy/pkg/detector/ospkg/utils"
 
 	"github.com/aquasecurity/fanal/analyzer/os"
 	ftypes "github.com/aquasecurity/fanal/types"
@@ -15,6 +13,7 @@ import (
 	"github.com/aquasecurity/trivy/pkg/log"
 	"github.com/aquasecurity/trivy/pkg/scanner/utils"
 	"github.com/aquasecurity/trivy/pkg/types"
+	version "github.com/knqyf263/go-rpm-version"
 )
 
 var (
@@ -58,10 +57,11 @@ func (s *Scanner) Detect(osVer string, pkgs []ftypes.Package) ([]types.DetectedV
 	var vulns []types.DetectedVulnerability
 	for _, pkg := range pkgs {
 		// For Red Hat Security Data API containing only source package names
-		advisories, err := s.vs.Get(osVer, pkg.SrcName)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to get Red Hat advisories: %w", err)
-		}
+		// advisories, err := s.vs.Get(osVer, pkg.SrcName)
+		// if err != nil {
+		// 	return nil, xerrors.Errorf("failed to get Red Hat advisories: %w", err)
+		// }
+		advisories := ospkgutils.GetAllAdvisories(s.vs, pkg.SrcName, redhatEOLDates)
 
 		installed := utils.FormatVersion(pkg)
 		installedVersion := version.NewVersion(installed)
@@ -80,10 +80,11 @@ func (s *Scanner) Detect(osVer string, pkgs []ftypes.Package) ([]types.DetectedV
 		}
 
 		// For Red Hat OVAL containing only binary package names
-		advisories, err = s.vs.Get(osVer, pkg.Name)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to get Red Hat advisories: %w", err)
-		}
+		// advisories, err = s.vs.Get(osVer, pkg.Name)
+		// if err != nil {
+		// 	return nil, xerrors.Errorf("failed to get Red Hat advisories: %w", err)
+		// }
+		advisories = ospkgutils.GetAllAdvisories(s.vs, pkg.Name, redhatEOLDates)
 
 		for _, adv := range advisories {
 			fixedVersion := version.NewVersion(adv.FixedVersion)

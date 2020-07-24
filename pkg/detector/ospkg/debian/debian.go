@@ -6,15 +6,14 @@ import (
 
 	"github.com/aquasecurity/trivy-db/pkg/vulnsrc/debian"
 	debianoval "github.com/aquasecurity/trivy-db/pkg/vulnsrc/debian-oval"
-
-	version "github.com/knqyf263/go-deb-version"
-	"golang.org/x/xerrors"
+	ospkgutils "github.com/aquasecurity/trivy/pkg/detector/ospkg/utils"
 
 	ftypes "github.com/aquasecurity/fanal/types"
 	dbTypes "github.com/aquasecurity/trivy-db/pkg/types"
 	"github.com/aquasecurity/trivy/pkg/log"
 	"github.com/aquasecurity/trivy/pkg/scanner/utils"
 	"github.com/aquasecurity/trivy/pkg/types"
+	version "github.com/knqyf263/go-deb-version"
 )
 
 var (
@@ -65,10 +64,11 @@ func (s *Scanner) Detect(osVer string, pkgs []ftypes.Package) ([]types.DetectedV
 	for _, pkg := range pkgs {
 		// This bucket has only fixed vulnerabilities.
 		// To detect vulnerabilities, it is necessary to compare versions between the installed version and the patched version.
-		advisories, err := s.ovalVs.Get(osVer, pkg.SrcName)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to get debian OVAL: %w", err)
-		}
+		// advisories, err := s.ovalVs.Get(osVer, pkg.SrcName)
+		// if err != nil {
+		// 	return nil, xerrors.Errorf("failed to get debian OVAL: %w", err)
+		// }
+		advisories := ospkgutils.GetAllAdvisories(s.ovalVs, pkg.SrcName, eolDates)
 
 		installed := utils.FormatSrcVersion(pkg)
 		installedVersion, err := version.NewVersion(installed)
@@ -98,10 +98,11 @@ func (s *Scanner) Detect(osVer string, pkgs []ftypes.Package) ([]types.DetectedV
 
 		// This bucket has only unfixed vulnerabilities which don't have a patched version.
 		// It is unnecessary to compare versions since it should be always vulnerable to an unfixed vulnerability.
-		advisories, err = s.vs.Get(osVer, pkg.SrcName)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to get debian advisory: %w", err)
-		}
+		// advisories, err = s.vs.Get(osVer, pkg.SrcName)
+		// if err != nil {
+		// 	return nil, xerrors.Errorf("failed to get debian advisory: %w", err)
+		// }
+		advisories = ospkgutils.GetAllAdvisories(s.vs, pkg.SrcName, eolDates)
 		for _, adv := range advisories {
 			vuln := types.DetectedVulnerability{
 				VulnerabilityID:  adv.VulnerabilityID,

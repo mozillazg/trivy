@@ -4,15 +4,14 @@ import (
 	"strings"
 	"time"
 
-	version "github.com/knqyf263/go-apk-version"
-	"golang.org/x/xerrors"
-
 	ftypes "github.com/aquasecurity/fanal/types"
 	dbTypes "github.com/aquasecurity/trivy-db/pkg/types"
 	"github.com/aquasecurity/trivy-db/pkg/vulnsrc/alpine"
+	ospkgutils "github.com/aquasecurity/trivy/pkg/detector/ospkg/utils"
 	"github.com/aquasecurity/trivy/pkg/log"
 	"github.com/aquasecurity/trivy/pkg/scanner/utils"
 	"github.com/aquasecurity/trivy/pkg/types"
+	version "github.com/knqyf263/go-apk-version"
 )
 
 var (
@@ -61,10 +60,11 @@ func (s *Scanner) Detect(osVer string, pkgs []ftypes.Package) ([]types.DetectedV
 
 	var vulns []types.DetectedVulnerability
 	for _, pkg := range pkgs {
-		advisories, err := s.vs.Get(osVer, pkg.Name)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to get alpine advisories: %w", err)
-		}
+		// advisories, err := s.vs.Get(osVer, pkg.Name)
+		// if err != nil {
+		// 	return nil, xerrors.Errorf("failed to get alpine advisories: %w", err)
+		// }
+		advisories := ospkgutils.GetAllAdvisories(s.vs, pkg.Name, eolDates)
 
 		installed := utils.FormatVersion(pkg)
 		installedVersion, err := version.NewVersion(installed)

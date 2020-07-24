@@ -3,15 +3,14 @@ package ubuntu
 import (
 	"time"
 
-	version "github.com/knqyf263/go-deb-version"
-	"golang.org/x/xerrors"
-
 	ftypes "github.com/aquasecurity/fanal/types"
 	dbTypes "github.com/aquasecurity/trivy-db/pkg/types"
 	"github.com/aquasecurity/trivy-db/pkg/vulnsrc/ubuntu"
+	ospkgutils "github.com/aquasecurity/trivy/pkg/detector/ospkg/utils"
 	"github.com/aquasecurity/trivy/pkg/log"
 	"github.com/aquasecurity/trivy/pkg/scanner/utils"
 	"github.com/aquasecurity/trivy/pkg/types"
+	version "github.com/knqyf263/go-deb-version"
 )
 
 var (
@@ -68,10 +67,11 @@ func (s *Scanner) Detect(osVer string, pkgs []ftypes.Package) ([]types.DetectedV
 
 	var vulns []types.DetectedVulnerability
 	for _, pkg := range pkgs {
-		advisories, err := s.vs.Get(osVer, pkg.SrcName)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to get Ubuntu advisories: %w", err)
-		}
+		// advisories, err := s.vs.Get(osVer, pkg.SrcName)
+		// if err != nil {
+		// 	return nil, xerrors.Errorf("failed to get Ubuntu advisories: %w", err)
+		// }
+		advisories := ospkgutils.GetAllAdvisories(s.vs, pkg.SrcName, eolDates)
 
 		installed := utils.FormatSrcVersion(pkg)
 		installedVersion, err := version.NewVersion(installed)
