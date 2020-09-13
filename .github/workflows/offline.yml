@@ -28,7 +28,7 @@ jobs:
           set -xe
           echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-          tag=$(date +%Y-%m-%d-%H:%M:%S)
+          tag=$(date +%Y%m%d%H%M%S)
           images="mozillazg/trivy:offline-${tag} mozillazg/trivy:offline-latest"
 
           for i in ${images}; do
