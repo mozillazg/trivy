@@ -1,0 +1,36 @@
+name: offline docker image
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.14.x
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: build
+        run: make build
+
+      - name: Build the Docker image
+        run: |
+          set -xe
+          echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+          tag=$(date +%Y-%m-%d-%H:%M:%S)
+          docker build . --file Dockerfile.offline --tag trivy:offline-$(tag)
+          docker build . --file Dockerfile.offline --tag trivy:offline-latest
+
+          docker push trivy:offline-$(tag)
+          docker push trivy:offline-latest
