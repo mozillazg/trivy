@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: build
-        run: make build
+        run: CGO_ENABLED=0 make build
 
       - name: Build the Docker image
         run: |
@@ -37,3 +37,5 @@ jobs:
             docker build . --file Dockerfile.offline --tag ${i}
             docker push ${i}
           done
+      - name: test image
+        run: docker run --rm -it mozillazg/trivy:offline-latest trivy -h
