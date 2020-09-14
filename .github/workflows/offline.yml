@@ -38,4 +38,4 @@ jobs:
             docker push ${i}
           done
       - name: test image
-        run: docker run --rm -it mozillazg/trivy:offline-latest trivy -h
+        run: docker run --rm mozillazg/trivy:offline-latest trivy -h
