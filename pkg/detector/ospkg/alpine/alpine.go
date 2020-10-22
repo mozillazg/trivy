@@ -66,7 +66,7 @@ func (s *Scanner) Detect(osVer string, pkgs []ftypes.Package) ([]types.DetectedV
 		// }
 		advisories := ospkgutils.GetAllAdvisories(s.vs, pkg.Name, eolDates)
 
-		installed := utils.FormatVersion(pkg)
+		installed := utils.FormatSrcVersion(pkg)
 		installedVersion, err := version.NewVersion(installed)
 		if err != nil {
 			log.Logger.Debugf("failed to parse Alpine Linux installed package version: %s", err)
@@ -74,8 +74,7 @@ func (s *Scanner) Detect(osVer string, pkgs []ftypes.Package) ([]types.DetectedV
 		}
 
 		for _, adv := range advisories {
-			f := strings.Replace(adv.FixedVersion, "_rc", "~rc", 1)
-			fixedVersion, err := version.NewVersion(f)
+			fixedVersion, err := version.NewVersion(adv.FixedVersion)
 			if err != nil {
 				log.Logger.Debugf("failed to parse Alpine Linux fixed version: %s", err)
 				continue

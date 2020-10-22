@@ -101,6 +101,15 @@ func ConvertToRpcVulns(vulns []types.DetectedVulnerability) []*common.Vulnerabil
 		if err != nil {
 			log.Logger.Warn(err)
 		}
+		cvssMap := make(map[string]*common.CVSS) // This is needed because protobuf generates a map[string]*CVSS type
+		for vendor, vendorSeverity := range vuln.CVSS {
+			cvssMap[vendor] = &common.CVSS{
+				V2Vector: vendorSeverity.V2Vector,
+				V3Vector: vendorSeverity.V3Vector,
+				V2Score:  vendorSeverity.V2Score,
+				V3Score:  vendorSeverity.V3Score,
+			}
+		}
 
 		rpcVulns = append(rpcVulns, &common.Vulnerability{
 			VulnerabilityId:  vuln.VulnerabilityID,
@@ -115,7 +124,9 @@ func ConvertToRpcVulns(vulns []types.DetectedVulnerability) []*common.Vulnerabil
 				Digest: vuln.Layer.Digest,
 				DiffId: vuln.Layer.DiffID,
 			},
+			Cvss:           cvssMap,
 			SeveritySource: vuln.SeveritySource,
+			CweIds:         vuln.CweIDs,
 		})
 	}
 	return rpcVulns
@@ -128,6 +139,16 @@ func ConvertFromRpcResults(rpcResults []*scanner.Result) []report.Result {
 		var vulns []types.DetectedVulnerability
 		for _, vuln := range result.Vulnerabilities {
 			severity := dbTypes.Severity(vuln.Severity)
+			cvssMap := make(dbTypes.VendorCVSS) // This is needed because protobuf generates a map[string]*CVSS type
+			for vendor, vendorSeverity := range vuln.Cvss {
+				cvssMap[vendor] = dbTypes.CVSS{
+					V2Vector: vendorSeverity.V2Vector,
+					V3Vector: vendorSeverity.V3Vector,
+					V2Score:  vendorSeverity.V2Score,
+					V3Score:  vendorSeverity.V3Score,
+				}
+			}
+
 			vulns = append(vulns, types.DetectedVulnerability{
 				VulnerabilityID:  vuln.VulnerabilityId,
 				PkgName:          vuln.PkgName,
@@ -137,7 +158,9 @@ func ConvertFromRpcResults(rpcResults []*scanner.Result) []report.Result {
 					Title:       vuln.Title,
 					Description: vuln.Description,
 					Severity:    severity.String(),
+					CVSS:        cvssMap,
 					References:  vuln.References,
+					CweIDs:      vuln.CweIds,
 				},
 				Layer: ftypes.Layer{
 					Digest: vuln.Layer.Digest,

@@ -3,8 +3,9 @@ package library
 import (
 	"fmt"
 
-	"github.com/aquasecurity/fanal/analyzer/library"
+	"github.com/Masterminds/semver/v3"
 	ecosystem "github.com/aquasecurity/trivy-db/pkg/vulnsrc/ghsa"
+	"github.com/aquasecurity/trivy-db/pkg/vulnsrc/vulnerability"
 	"github.com/aquasecurity/trivy/pkg/detector/library/bundler"
 	"github.com/aquasecurity/trivy/pkg/detector/library/cargo"
 	"github.com/aquasecurity/trivy/pkg/detector/library/composer"
@@ -12,7 +13,6 @@ import (
 	"github.com/aquasecurity/trivy/pkg/detector/library/node"
 	"github.com/aquasecurity/trivy/pkg/detector/library/python"
 	"github.com/aquasecurity/trivy/pkg/types"
-	"github.com/knqyf263/go-version"
 	"golang.org/x/xerrors"
 )
 
@@ -21,7 +21,7 @@ type Factory interface {
 }
 
 type advisory interface {
-	DetectVulnerabilities(string, *version.Version) ([]types.DetectedVulnerability, error)
+	DetectVulnerabilities(string, *semver.Version) ([]types.DetectedVulnerability, error)
 }
 
 type DriverFactory struct{}
@@ -31,19 +31,15 @@ func (d DriverFactory) NewDriver(filename string) (Driver, error) {
 	var driver Driver
 	switch filename {
 	case "Gemfile.lock":
-		driver = NewBundlerDriver()
+		driver = newRubyDriver()
 	case "Cargo.lock":
-		driver = NewCargoDriver()
+		driver = newRustDriver()
 	case "composer.lock":
-		driver = NewComposerDriver()
-	case "package-lock.json":
-		driver = NewNpmDriver()
-	case "yarn.lock":
-		driver = NewYarnDriver()
-	case "Pipfile.lock":
-		driver = NewPipenvDriver()
-	case "poetry.lock":
-		driver = NewPoetryDriver()
+		driver = newPHPDriver()
+	case "package-lock.json", "yarn.lock":
+		driver = newNodejsDriver()
+	case "Pipfile.lock", "poetry.lock":
+		driver = newPythonDriver()
 	default:
 		return Driver{}, xerrors.New(fmt.Sprintf("unsupport filename %s", filename))
 	}
@@ -51,18 +47,18 @@ func (d DriverFactory) NewDriver(filename string) (Driver, error) {
 }
 
 type Driver struct {
-	pkgManager string
+	lang       string
 	advisories []advisory
 }
 
-func NewDriver(p string, advisories ...advisory) Driver {
-	return Driver{pkgManager: p, advisories: advisories}
+func NewDriver(lang string, advisories ...advisory) Driver {
+	return Driver{lang: lang, advisories: advisories}
 }
 
-func (driver *Driver) Detect(pkgName string, pkgVer *version.Version) ([]types.DetectedVulnerability, error) {
+func (d *Driver) Detect(pkgName string, pkgVer *semver.Version) ([]types.DetectedVulnerability, error) {
 	var detectedVulnerabilities []types.DetectedVulnerability
 	uniqVulnIdMap := make(map[string]struct{})
-	for _, d := range driver.advisories {
+	for _, d := range append(d.advisories, NewAdvisory(d.lang)) {
 		vulns, err := d.DetectVulnerabilities(pkgName, pkgVer)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to detect vulnerabilities: %w", err)
@@ -79,34 +75,26 @@ func (driver *Driver) Detect(pkgName string, pkgVer *version.Version) ([]types.D
 	return detectedVulnerabilities, nil
 }
 
-func NewBundlerDriver() Driver {
-	return NewDriver(library.Bundler, ghsa.NewAdvisory(ecosystem.Rubygems), bundler.NewAdvisory())
-}
-
-func NewComposerDriver() Driver {
-	return NewDriver(library.Composer, ghsa.NewAdvisory(ecosystem.Composer), composer.NewAdvisory())
-}
-
-func NewCargoDriver() Driver {
-	return NewDriver(library.Cargo, cargo.NewAdvisory())
-}
-
-func NewNpmDriver() Driver {
-	return NewDriver(library.Npm, ghsa.NewAdvisory(ecosystem.Npm), node.NewAdvisory())
-}
-
-func NewYarnDriver() Driver {
-	return NewDriver(library.Yarn, ghsa.NewAdvisory(ecosystem.Npm), node.NewAdvisory())
-}
-
-func NewPipenvDriver() Driver {
-	return NewDriver(library.Pipenv, ghsa.NewAdvisory(ecosystem.Pip), python.NewAdvisory())
-}
-
-func NewPoetryDriver() Driver {
-	return NewDriver(library.Poetry, ghsa.NewAdvisory(ecosystem.Pip), python.NewAdvisory())
-}
-
 func (d *Driver) Type() string {
-	return d.pkgManager
+	return d.lang
+}
+
+func newRubyDriver() Driver {
+	return NewDriver(vulnerability.Ruby, ghsa.NewAdvisory(ecosystem.Rubygems), bundler.NewAdvisory())
+}
+
+func newPHPDriver() Driver {
+	return NewDriver(vulnerability.PHP, ghsa.NewAdvisory(ecosystem.Composer), composer.NewAdvisory())
+}
+
+func newRustDriver() Driver {
+	return NewDriver(vulnerability.Rust, cargo.NewAdvisory())
+}
+
+func newNodejsDriver() Driver {
+	return NewDriver(vulnerability.Nodejs, ghsa.NewAdvisory(ecosystem.Npm), node.NewAdvisory())
+}
+
+func newPythonDriver() Driver {
+	return NewDriver(vulnerability.Python, ghsa.NewAdvisory(ecosystem.Pip), python.NewAdvisory())
 }

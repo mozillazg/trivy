@@ -5,57 +5,46 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"html"
 	"io"
 	"io/ioutil"
 	"os"
 	"strings"
 	"text/template"
+	"time"
 
 	"golang.org/x/xerrors"
 
+	ftypes "github.com/aquasecurity/fanal/types"
 	dbTypes "github.com/aquasecurity/trivy-db/pkg/types"
 	"github.com/aquasecurity/trivy/pkg/types"
-
+	"github.com/aquasecurity/trivy/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 )
+
+var Now = time.Now
 
 type Results []Result
 
 type Result struct {
 	Target          string                        `json:"Target"`
 	Type            string                        `json:"Type,omitempty"`
+	Packages        []ftypes.Package              `json:"Packages,omitempty"`
 	Vulnerabilities []types.DetectedVulnerability `json:"Vulnerabilities"`
 }
 
-func WriteResults(format string, output io.Writer, results Results, outputTemplate string, light bool) error {
+func WriteResults(format string, output io.Writer, severities []dbTypes.Severity, results Results, outputTemplate string, light bool) error {
 	var writer Writer
 	switch format {
 	case "table":
-		writer = &TableWriter{Output: output, Light: light}
+		writer = &TableWriter{Output: output, Light: light, Severities: severities}
 	case "json":
 		writer = &JsonWriter{Output: output}
 	case "template":
-		if strings.HasPrefix(outputTemplate, "@") {
-			buf, err := ioutil.ReadFile(strings.TrimPrefix(outputTemplate, "@"))
-			if err != nil {
-				return xerrors.Errorf("Error retrieving template from path: %w", err)
-			}
-			outputTemplate = string(buf)
+		var err error
+		if writer, err = NewTemplateWriter(output, outputTemplate); err != nil {
+			return xerrors.Errorf("failed to initialize template writer: %w", err)
 		}
-		tmpl, err := template.New("output template").Funcs(template.FuncMap{
-			"escapeXML": func(input string) string {
-				escaped := &bytes.Buffer{}
-				if err := xml.EscapeText(escaped, []byte(input)); err != nil {
-					fmt.Printf("error while escapeString to XML: %v", err.Error())
-					return input
-				}
-				return escaped.String()
-			},
-		}).Parse(outputTemplate)
-		if err != nil {
-			return xerrors.Errorf("error parsing template: %w", err)
-		}
-		writer = &TemplateWriter{Output: output, Template: tmpl}
 	default:
 		return xerrors.Errorf("unknown format: %v", format)
 	}
@@ -71,8 +60,9 @@ type Writer interface {
 }
 
 type TableWriter struct {
-	Output io.Writer
-	Light  bool
+	Severities []dbTypes.Severity
+	Output     io.Writer
+	Light      bool
 }
 
 func (tw TableWriter) Write(results Results) error {
@@ -116,7 +106,16 @@ func (tw TableWriter) write(result Result) {
 	}
 
 	var results []string
+
+	var severities []string
+	for _, sev := range tw.Severities {
+		severities = append(severities, sev.String())
+	}
+
 	for _, severity := range dbTypes.SeverityNames {
+		if !utils.StringInSlice(severity, severities) {
+			continue
+		}
 		r := fmt.Sprintf("%s: %d", severity, severityCount[severity])
 		results = append(results, r)
 	}
@@ -154,6 +153,48 @@ func (jw JsonWriter) Write(results Results) error {
 type TemplateWriter struct {
 	Output   io.Writer
 	Template *template.Template
+}
+
+func NewTemplateWriter(output io.Writer, outputTemplate string) (*TemplateWriter, error) {
+	if strings.HasPrefix(outputTemplate, "@") {
+		buf, err := ioutil.ReadFile(strings.TrimPrefix(outputTemplate, "@"))
+		if err != nil {
+			return nil, xerrors.Errorf("error retrieving template from path: %w", err)
+		}
+		outputTemplate = string(buf)
+	}
+	tmpl, err := template.New("output template").Funcs(template.FuncMap{
+		"escapeXML": func(input string) string {
+			escaped := &bytes.Buffer{}
+			if err := xml.EscapeText(escaped, []byte(input)); err != nil {
+				fmt.Printf("error while escapeString to XML: %v", err.Error())
+				return input
+			}
+			return escaped.String()
+		},
+		"endWithPeriod": func(input string) string {
+			if !strings.HasSuffix(input, ".") {
+				input += "."
+			}
+			return input
+		},
+		"toLower": func(input string) string {
+			return strings.ToLower(input)
+		},
+		"escapeString": func(input string) string {
+			return html.EscapeString(input)
+		},
+		"getEnv": func(key string) string {
+			return os.Getenv(key)
+		},
+		"getCurrentTime": func() string {
+			return Now().UTC().Format(time.RFC3339Nano)
+		},
+	}).Parse(outputTemplate)
+	if err != nil {
+		return nil, xerrors.Errorf("error parsing template: %w", err)
+	}
+	return &TemplateWriter{Output: output, Template: tmpl}, nil
 }
 
 func (tw TemplateWriter) Write(results Results) error {

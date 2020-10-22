@@ -6,6 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/aquasecurity/trivy)](https://goreportcard.com/report/github.com/aquasecurity/trivy)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/aquasecurity/trivy/blob/master/LICENSE)
 [![Docker image](https://images.microbadger.com/badges/version/aquasec/trivy.svg)](https://microbadger.com/images/aquasec/trivy "Get your own version badge on microbadger.com")
+[![codecov](https://codecov.io/gh/aquasecurity/trivy/branch/master/graph/badge.svg)](https://codecov.io/gh/aquasecurity/trivy)
 
 A Simple and Comprehensive Vulnerability Scanner for Containers and other Artifacts, Suitable for CI.
 
@@ -44,6 +45,9 @@ A Simple and Comprehensive Vulnerability Scanner for Containers and other Artifa
     + [Save the results using a template](#save-the-results-using-a-template)
     + [Filter the vulnerabilities by severities](#filter-the-vulnerabilities-by-severities)
     + [Filter the vulnerabilities by type](#filter-the-vulnerabilities-by-type)
+    + [Filter the vulnerabilities by Open Policy Agent](#filter-the-vulnerabilities-by-open-policy-agent-policy)
+    + [Skip traversal of the specific files](#skip-traversal-of-the-specific-files)
+    + [Skip traversal in the specific directory](#skip-traversal-in-the-specific-directory)
     + [Skip update of vulnerability DB](#skip-update-of-vulnerability-db)
     + [Only download vulnerability database](#only-download-vulnerability-database)
     + [Ignore unfixed vulnerabilities](#ignore-unfixed-vulnerabilities)
@@ -64,6 +68,7 @@ A Simple and Comprehensive Vulnerability Scanner for Containers and other Artifa
   * [CircleCI](#circleci)
   * [GitLab CI](#gitlab-ci)
   * [AWS CodePipeline](#aws-codepipeline)
+  * [AWS Security Hub](#aws-security-hub)
   * [Authorization for Private Docker Registry](#authorization-for-private-docker-registry)
 - [Vulnerability Detection](#vulnerability-detection)
   * [OS Packages](#os-packages)
@@ -181,7 +186,7 @@ yay -Sy trivy-bin
 
 ## Homebrew
 
-You can use homebrew on macOS.
+You can use homebrew on macOS and Linux.
 
 ```
 $ brew install aquasecurity/trivy/trivy
@@ -217,7 +222,7 @@ You also need to install `rpm` command for scanning images based on RHEL/CentOS.
 
 ## Image
 
-Simply specify an image name (and a tag). **The `latest` tag should be avoided as problems occur with the image cache.** See [Clear image caches](#clear-image-caches).
+Simply specify an image name (and a tag). **The `latest` tag should be avoided as problems occur with the image cache.** See [Clear caches](#clear-caches).
 
 ### Basic
 
@@ -876,6 +881,7 @@ $ trivy image --format template --template "{{ range . }} {{ .Target }} {{ end }
 ```
 <details>
 <summary>Result</summary>
+
 ```
 2020-01-02T18:02:32.856+0100    INFO    Detecting Alpine vulnerabilities...
  golang:1.12-alpine (alpine 3.10.2)
@@ -893,6 +899,13 @@ In the following example using the template `junit.tpl` XML can be generated.
 $ trivy image --format template --template "@contrib/junit.tpl" -o junit-report.xml  golang:1.12-alpine
 ```
 
+In the following example using the template `sarif.tpl` [Sarif](https://docs.github.com/en/github/finding-security-vulnerabilities-and-errors-in-your-code/managing-results-from-code-scanning) can be generated.
+```
+$ trivy image --format template --template "@contrib/sarif.tpl" -o report.sarif  golang:1.12-alpine
+```
+This SARIF format can be uploaded to GitHub code scanning results, and there is a [Trivy GitHub Action](https://github.com/aquasecurity/trivy-action) for automating this process.
+
+Trivy also supports an [ASFF template for reporting findings to AWS Security Hub](docs/integration/security-hub.md)
 ### Filter the vulnerabilities by severities
 
 ```
@@ -1092,6 +1105,55 @@ Total: 4751 (UNKNOWN: 1, LOW: 150, MEDIUM: 3504, HIGH: 1013, CRITICAL: 83)
 ```
 
 </details>
+
+### Filter the vulnerabilities by Open Policy Agent policy
+[EXPERIMENTAL] This feature might change without preserving backwards compatibility.
+
+Trivy supports Open Policy Agent (OPA) to filter vulnerabilities. You can specify a Rego file with `--ignore-policy` option.
+
+The Rego package name must be `trivy` and it must include a rule called `ignore` which determines if each individual vulnerability should be excluded (ignore=true) or not (ignore=false). In the policy, each vulnerability will be available for inspection as the `input` variable. The structure of each vulnerability input is the same as for the Trivy JSON output.  
+There is a built-in Rego library with helper functions that you can import into your policy using: `import data.lib.trivy`. For more info about the helper functions, look at the library [here](pkg/vulnerability/module.go)
+
+To get started, see the [example policy](./contrib/example_policy).
+
+```
+$ trivy image --policy contrib/example_filter/basic.rego centos:7
+```
+
+<details>
+<summary>Result</summary>
+
+```
+centos:7 (centos 7.8.2003)
+==========================
+Total: 1 (UNKNOWN: 0, LOW: 0, MEDIUM: 0, HIGH: 1, CRITICAL: 0)
+
++---------+------------------+----------+-------------------+---------------+--------------------------------+
+| LIBRARY | VULNERABILITY ID | SEVERITY | INSTALLED VERSION | FIXED VERSION |             TITLE              |
++---------+------------------+----------+-------------------+---------------+--------------------------------+
+| glib2   | CVE-2016-3191    | HIGH     | 2.56.1-5.el7      |               | pcre: workspace overflow       |
+|         |                  |          |                   |               | for (*ACCEPT) with deeply      |
+|         |                  |          |                   |               | nested parentheses (8.39/13,   |
+|         |                  |          |                   |               | 10.22/12)                      |
++---------+------------------+----------+-------------------+---------------+--------------------------------+
+```
+
+</details>
+
+### Skip traversal of the specific files
+Trivy traversals directories and looks for all lock files by default. If your image contains lock files which are not maintained by you, you can skip the file.
+
+```
+$ trivy image --skip-files "/Gemfile.lock,/app/Pipfile.lock" quay.io/fluentd_elasticsearch/fluentd:v2.9.0
+```
+
+### Skip traversal in the specific directory
+Trivy traversals directories and look for all lock files by default. If your image contains lock files which are not maintained by you, you can skip traversal in the specific directory.
+
+```
+$ trivy image --skip-dirs "/usr/lib/ruby/gems,/etc" fluent/fluentd:edge
+```
+
 
 ### Skip update of vulnerability DB
 
@@ -1422,6 +1484,7 @@ cache:
 ```
 
 Example: https://travis-ci.org/aquasecurity/trivy-ci-test
+
 Repository: https://github.com/aquasecurity/trivy-ci-test
 
 ## CircleCI
@@ -1462,6 +1525,7 @@ workflows:
 ```
 
 Example: https://circleci.com/gh/aquasecurity/trivy-ci-test
+
 Repository: https://github.com/aquasecurity/trivy-ci-test
 
 ## GitLab CI
@@ -1485,11 +1549,9 @@ trivy:
     DOCKER_TLS_CERTDIR: ""
     IMAGE: trivy-ci-test:$CI_COMMIT_SHA
   before_script:
-    - apk add --no-cache curl
-    - export VERSION=$(curl --silent "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
-    - echo $VERSION
-    - wget https://github.com/aquasecurity/trivy/releases/download/v${VERSION}/trivy_${VERSION}_Linux-64bit.tar.gz
-    - tar zxvf trivy_${VERSION}_Linux-64bit.tar.gz
+    - export TRIVY_VERSION=$(wget -qO - "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+    - echo $TRIVY_VERSION
+    - wget --no-verbose https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz -O - | tar -zxvf -
   allow_failure: true
   script:
     # Build image
@@ -1509,9 +1571,17 @@ trivy:
       container_scanning: gl-container-scanning-report.json
 ```
 
+Example: https://gitlab.com/aquasecurity/trivy-ci-test/pipelines
+
+Repository: https://github.com/aquasecurity/trivy-ci-test
+
 ## AWS CodePipeline
 
 See [this blog post](https://aws.amazon.com/blogs/containers/scanning-images-with-trivy-in-an-aws-codepipeline/) for an example of using Trivy within AWS CodePipeline.
+
+## AWS Security Hub
+
+See [here](docs/integration/security-hub.md)
 
 ## Authorization for Private Docker Registry
 
@@ -1690,6 +1760,9 @@ OPTIONS:
    --ignorefile value  specify .trivyignore file (default: ".trivyignore") [$TRIVY_IGNOREFILE]
    --timeout value     docker timeout (default: 2m0s) [$TRIVY_TIMEOUT]
    --light             light mode: it's faster, but vulnerability descriptions and references are not displayed (default: false) [$TRIVY_LIGHT]
+   --list-all-pkgs     enabling the option will output all packages regardless of vulnerability [$TRIVY_LIST_ALL_PKGS]
+   --skip-files value  specify the file path to skip traversal [$TRIVY_SKIP_FILES]
+   --skip-dirs value   specify the directory where the traversal is skipped [$TRIVY_SKIP_DIRS]
    --help, -h          show help (default: false)
 ```
 
@@ -1748,15 +1821,14 @@ See [here](docs/air-gap.md)
 
 ## Overview
 
-| Scanner        | OS<br>Packages | Application<br>Dependencies | Easy to use | Accuracy | Suitable<br>for CI |
-| -------------- | :------------: | :-------------------------: | :---------: | :------: | :-------------------: |
-| Trivy          |       ◯        |              ◯              |      ◯      |    ◎     |           ◯           |
-| Clair          |       ◯        |              ×              |      △      |    ◯     |           △           |
-| Anchore Engine |       ◯        |              △              |      △      |    ◯     |           △           |
-| Quay           |       ◯        |              ×              |      ◯      |    ◯     |           ×           |
-| MicroScanner   |       ◯        |              ×              |      ◯      |    ◯     |           ◯           |
-| Docker Hub     |       ◯        |              ×              |      ◯      |    ×     |           ×           |
-| GCR            |       ◯        |              ×              |      ◯      |    ◯     |           ×           |
+| Scanner        | OS<br>Packages  | Application<br>Dependencies | Easy to use  | Accuracy    | Suitable<br>for CI  |
+| -------------- | :-------------: | :-------------------------: | :----------: | :---------: | :-----------------: |
+| Trivy          |       ✅        |       ✅<br>(5 languages)   |    ⭐ ⭐ ⭐    |  ⭐ ⭐ ⭐    |      ⭐ ⭐ ⭐         |
+| Clair          |       ✅        |              ×              |      ⭐       |   ⭐ ⭐      |      ⭐ ⭐           |
+| Anchore Engine |       ✅        |       ✅<br>(4 languages)   |     ⭐ ⭐      |   ⭐ ⭐      |     ⭐ ⭐ ⭐         |
+| Quay           |       ✅        |              ×              |    ⭐ ⭐ ⭐    |   ⭐ ⭐      |        ×            |
+| Docker Hub     |       ✅        |              ×              |    ⭐ ⭐ ⭐    |    ⭐        |        ×            |
+| GCR            |       ✅        |              ×              |    ⭐ ⭐ ⭐    |   ⭐ ⭐      |        ×            |
 
 ## Blogs
 - [Open Source CVE Scanner Round-Up: Clair vs Anchore vs Trivy](https://boxboat.com/2020/04/24/image-scanning-tech-compared/)
@@ -1893,6 +1965,12 @@ $ brew unlink trivy && brew uninstall trivy
 ($ rm -rf /usr/local/Cellar/trivy/64)
 $ brew install aquasecurity/trivy/trivy
 ```
+
+### Running in parallel takes same time as series run 
+When running trivy on multiple images simultaneously, it will take same time as running trivy in series.  
+This is because of a limitation of boltdb.  
+> Bolt obtains a file lock on the data file so multiple processes cannot open the same database at the same time. Opening an already open Bolt database will cause it to hang until the other process closes it.
+Reference : [boltdb: Opening a database](https://github.com/boltdb/bolt#opening-a-database).
 
 ## Others
 

@@ -176,6 +176,30 @@ var (
 		EnvVars: []string{"TRIVY_TOKEN_HEADER"},
 	}
 
+	ignorePolicy = cli.StringFlag{
+		Name:    "ignore-policy",
+		Usage:   "specify the Rego file to evaluate each vulnerability",
+		EnvVars: []string{"TRIVY_IGNORE_POLICY"},
+	}
+
+	listAllPackages = cli.BoolFlag{
+		Name:    "list-all-pkgs",
+		Usage:   "enabling the option will output all packages regardless of vulnerability",
+		EnvVars: []string{"TRIVY_LIST_ALL_PKGS"},
+	}
+
+	skipFiles = cli.StringFlag{
+		Name:    "skip-files",
+		Usage:   "specify the file path to skip traversal",
+		EnvVars: []string{"TRIVY_SKIP_FILES"},
+	}
+
+	skipDirectories = cli.StringFlag{
+		Name:    "skip-dirs",
+		Usage:   "specify the directory where the traversal is skipped",
+		EnvVars: []string{"TRIVY_SKIP_DIRS"},
+	}
+
 	globalFlags = []cli.Flag{
 		&quietFlag,
 		&debugFlag,
@@ -200,6 +224,10 @@ var (
 		&ignoreFileFlag,
 		&timeoutFlag,
 		&lightFlag,
+		&ignorePolicy,
+		&listAllPackages,
+		&skipFiles,
+		&skipDirectories,
 	}
 
 	// deprecated options
@@ -342,6 +370,7 @@ func NewFilesystemCommand() *cli.Command {
 			&severityFlag,
 			&outputFlag,
 			&exitCodeFlag,
+			&skipUpdateFlag,
 			&clearCacheFlag,
 			&quietFlag,
 			&ignoreUnfixedFlag,
@@ -352,6 +381,10 @@ func NewFilesystemCommand() *cli.Command {
 			&cacheDirFlag,
 			&timeoutFlag,
 			&noProgressFlag,
+			&ignorePolicy,
+			&listAllPackages,
+			&skipFiles,
+			&skipDirectories,
 		},
 	}
 }
@@ -370,6 +403,7 @@ func NewRepositoryCommand() *cli.Command {
 			&severityFlag,
 			&outputFlag,
 			&exitCodeFlag,
+			&skipUpdateFlag,
 			&clearCacheFlag,
 			&quietFlag,
 			&ignoreUnfixedFlag,
@@ -380,6 +414,10 @@ func NewRepositoryCommand() *cli.Command {
 			&cacheDirFlag,
 			&timeoutFlag,
 			&noProgressFlag,
+			&ignorePolicy,
+			&listAllPackages,
+			&skipFiles,
+			&skipDirectories,
 		},
 	}
 }
@@ -407,6 +445,7 @@ func NewClientCommand() *cli.Command {
 			&ignoreFileFlag,
 			&cacheDirFlag,
 			&timeoutFlag,
+			&ignorePolicy,
 
 			// original flags
 			&token,

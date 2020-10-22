@@ -35,7 +35,7 @@ func TestServer_Detect(t *testing.T) {
 		name                string
 		args                args
 		detectExpectation   library.OperationDetectExpectation
-		fillInfoExpectation vulnerability.FillInfoExpectation
+		fillInfoExpectation vulnerability.OperationFillInfoExpectation
 		wantRes             *proto.DetectResponse
 		wantErr             string
 	}{
@@ -71,6 +71,7 @@ func TestServer_Detect(t *testing.T) {
 								Description: "description",
 								Severity:    "MEDIUM",
 								References:  []string{"http://example.com"},
+								CweIDs:      []string{"CWE-78"},
 							},
 							Layer: ftypes.Layer{
 								Digest: "sha256:154ad0735c360b212b167f424d33a62305770a1fcfb6363882f5c436cfbd9812",
@@ -80,8 +81,8 @@ func TestServer_Detect(t *testing.T) {
 					},
 				},
 			},
-			fillInfoExpectation: vulnerability.FillInfoExpectation{
-				Args: vulnerability.FillInfoArgs{
+			fillInfoExpectation: vulnerability.OperationFillInfoExpectation{
+				Args: vulnerability.OperationFillInfoArgs{
 					Vulns: []types.DetectedVulnerability{
 						{
 							VulnerabilityID:  "CVE-2019-0001",
@@ -93,6 +94,7 @@ func TestServer_Detect(t *testing.T) {
 								Description: "description",
 								Severity:    "MEDIUM",
 								References:  []string{"http://example.com"},
+								CweIDs:      []string{"CWE-78"},
 							},
 							Layer: ftypes.Layer{
 								Digest: "sha256:154ad0735c360b212b167f424d33a62305770a1fcfb6363882f5c436cfbd9812",
@@ -112,7 +114,9 @@ func TestServer_Detect(t *testing.T) {
 						Title:            "title",
 						Description:      "description",
 						Severity:         common.Severity_MEDIUM,
+						Cvss:             make(map[string]*common.CVSS),
 						References:       []string{"http://example.com"},
+						CweIds:           []string{"CWE-78"},
 						Layer: &common.Layer{
 							Digest: "sha256:154ad0735c360b212b167f424d33a62305770a1fcfb6363882f5c436cfbd9812",
 							DiffId: "sha256:b2a1a2d80bf0c747a4f6b0ca6af5eef23f043fcdb1ed4f3a3e750aef2dc68079",

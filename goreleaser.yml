@@ -19,6 +19,9 @@ builds:
       - arm64
     goarm:
       - 7
+    ignore:
+      - goos: darwin
+        goarch: 386
 
 nfpms:
   -
@@ -63,7 +66,8 @@ archives:
     files:
       - README.md
       - LICENSE
-      - contrib/gitlab.tpl
+      - contrib/*.tpl
+
 
 brews:
   -
@@ -81,6 +85,8 @@ dockers:
   - image_templates:
       - "docker.io/aquasec/trivy:{{ .Version }}"
       - "docker.io/aquasec/trivy:latest"
+      - "ghcr.io/aquasecurity/trivy:{{ .Version }}"
+      - "ghcr.io/aquasecurity/trivy:latest"
     binaries:
       - trivy
     build_flag_templates:
@@ -93,5 +99,5 @@ dockers:
       - "--label=org.label-schema.vcs=https://github.com/aquasecurity/trivy"
       - "--label=org.label-schema.vcs-ref={{ .FullCommit }}"
     extra_files:
-    - contrib/gitlab.tpl
-    - contrib/junit.tpl
+    - contrib/
+

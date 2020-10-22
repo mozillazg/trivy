@@ -1,4 +1,6 @@
 version: 2.1
+orbs:
+  codecov: codecov/codecov@1.1.0
 
 defaults: &defaults
   docker :
@@ -24,15 +26,21 @@ jobs:
       - run:
           name: Test
           command: make test
+      - codecov/upload:
+          file: ./coverage.txt
+
   release:
     <<: *defaults
     steps:
       - checkout
       - setup_remote_docker:
-          version: 18.06.0-ce
+          version: 19.03.13
       - run:
-          name: setup docker
+          name: login to Docker Hub
           command: echo $DOCKER_PASS | docker login --username $DOCKER_USER --password-stdin
+      - run:
+          name: login to GitHub Container Registry
+          command: echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin
       - run:
           name: Release
           command: goreleaser --rm-dist
