@@ -31,10 +31,10 @@ jobs:
           echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
           tag=$(date +%Y%m%d%H%M%S)
-          images="mozillazg/trivy:offline-${tag} mozillazg/trivy:offline-latest"
+          images="mozillazg/trivy:offline-$(git describe --tags) mozillazg/trivy:offline-${tag} mozillazg/trivy:offline-latest"
 
           for i in ${images}; do
-            docker build . --file Dockerfile.offline --tag ${i}
+            docker build . --file offline.Dockerfile --tag ${i}
             docker push ${i}
           done
       - name: test image
